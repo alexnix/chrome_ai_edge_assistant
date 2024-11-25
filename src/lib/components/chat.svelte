@@ -82,9 +82,8 @@
 	<Card.Content class="min-h-0 flex-grow"
 		><div class="h-full overflow-hidden">
 			<ScrollArea class="h-full min-h-0 overflow-y-auto">
-				{#each messages as aChatMessage}
-					<b>{aChatMessage.author}</b>
-					<p>{aChatMessage.text}</p>
+				{#each messages as message}
+					{@render singleChatMessage(message)}
 				{/each}
 			</ScrollArea>
 		</div></Card.Content
@@ -104,3 +103,8 @@
 		</div>
 	</Card.Footer>
 </Card.Root>
+
+{#snippet singleChatMessage(message)}
+	<b>{message.author}</b>
+	<p>{message.text}</p>
+{/snippet}

@@ -14,26 +14,30 @@
 			<h2 class="mt-0">Todo app</h2>
 			{#each Array(5) as _}
 				<Separator class="my-2" />
-				<div class="flex flex-row">
-					<div class="flex flex-grow flex-col">
-						<div><Badge variant="default">High Priority</Badge></div>
-						<span>hello</span>
-						<small>description here</small>
-					</div>
-
-					<div>
-						<Button size="icon" variant="outline">
-							<Elipsis />
-						</Button>
-						<Button size="icon" variant="outline">
-							<Check />
-						</Button>
-						<Button size="icon" variant="outline">
-							<Trash />
-						</Button>
-					</div>
-				</div>
+				{@render todo_item()}
 			{/each}
 		</Card.Content>
 	</Card.Root>
 </div>
+
+{#snippet todo_item()}
+	<div class="flex flex-row">
+		<div class="flex flex-grow flex-col">
+			<div><Badge variant="default">High Priority</Badge></div>
+			<span>hello</span>
+			<small>description here</small>
+		</div>
+
+		<div>
+			<Button size="icon" variant="outline">
+				<Elipsis />
+			</Button>
+			<Button size="icon" variant="outline">
+				<Check />
+			</Button>
+			<Button size="icon" variant="outline">
+				<Trash />
+			</Button>
+		</div>
+	</div>
+{/snippet}
