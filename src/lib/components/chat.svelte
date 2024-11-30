@@ -2,8 +2,12 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { state as appState } from '$lib/state.svelte';
 	import { ScrollArea } from './ui/scroll-area';
+	import { ChromeAiAssistant } from '$lib/ai';
+	import { onMount } from 'svelte';
+	import { marked } from 'marked';
+	import DOMPurify from 'isomorphic-dompurify';
+	import Spinner from './spinner.svelte';
 
 	interface ChatMessage {
 		author: 'user' | 'ai';
@@ -12,67 +16,59 @@
 
 	let userCurrentMessage = $state<string>('');
 	let messages = $state<ChatMessage[]>([]);
+	let assistant = $state<ChromeAiAssistant | null>(null);
+	let assistantAvailable = $state<boolean>(false);
+	onMount(async () => {
+		assistant = await ChromeAiAssistant.create();
+		assistantAvailable = true;
+	});
 
-	interface Replay {
-		text: string;
-	}
-
-	interface MissionAcomplished {
-		result: string;
-	}
-
-	interface AiAssistant {
-		sendMessage(): Promise<Replay | MissionAcomplished>;
-	}
-
-	interface Mission {
-		get(): string;
-	}
-
-	interface State {
-		addTodo(): void;
-	}
-
-	class ChromeAiAssistant implements AiAssistant {
-		async sendMessage(): Promise<Replay | MissionAcomplished> {
-			return { text: 'hi there' };
-		}
-	}
-
-	class TodoAppMission implements Mission {
-		get(): string {
-			return 'I will talk to you in natural languagte. Your purpose is to understand my requests and then generate one of the following commands.';
-		}
-	}
-
-	const chromAi = new ChromeAiAssistant(new TodoAppMission());
-
-	interface StateApp {
-		confirm: {
-			before_delete: boolean;
-			before_create: boolean;
-		};
-		description: {
-			show: boolean;
-		};
-		priority: {
-			show: boolean;
-		};
-		chat: {
-			position: 'left' | 'right';
-		};
-	}
-
-	function onChatMessage() {
+	// TODO call on enter 
+	async function onChatMessage() {
 		messages.push({
 			author: 'user',
-			text: userCurrentMessage
+			text: DOMPurify.sanitize(await marked.parse(userCurrentMessage))
 		});
-		appState.chat.position = 'right';
+
+		if (!assistant) {
+			alert('Ai assistant is not ready');
+			return;
+		}
+
+		const messageForAi = String(userCurrentMessage);
+		userCurrentMessage = '';
+		const res = await assistant.sendMessage(messageForAi);
+
+		if(res.type === "Reply") {
+			messages.push({
+				author: "ai",
+				text: "",
+			});
+			for await (const chunk of res.stream) {
+				console.log("chat: ", chunk.trim());
+				const fullResponse = chunk.trim();
+				messages[messages.length - 1].text = DOMPurify.sanitize(await marked.parse(fullResponse));
+				// TODO scroll the chat
+			}
+		}
 	}
 </script>
 
-<Card.Root class="flex h-full flex-col">
+<Card.Root class="relative flex h-full flex-col overflow-hidden">
+	{#if !window.ai || !window.ai.languageModel || !assistantAvailable}
+		<div
+			class="text-bold absolute left-0 top-0 flex h-full w-full items-center flex-col space-y-2 justify-center bg-gray-500 text-center text-white opacity-90"
+		>
+			{#if !window.ai || !window.ai.languageModel}
+				<p>Your browser does not support AI</p>
+			{/if}
+			{#if !assistantAvailable}
+				<p>Asistant is loading</p>
+				<Spinner/>
+			{/if}
+		</div>
+	{/if}
+
 	<Card.Header>
 		<Card.Title>Chat with Theo</Card.Title>
 		<Card.Description
@@ -90,7 +86,7 @@
 	>
 	<Card.Footer>
 		<div class="flex w-full flex-col">
-			<form on:submit={onChatMessage}>
+			<form onsubmit={onChatMessage}>
 				<div class="space-y-1">
 					<Textarea
 						class="w-full border-black"
@@ -104,7 +100,7 @@
 	</Card.Footer>
 </Card.Root>
 
-{#snippet singleChatMessage(message)}
+{#snippet singleChatMessage(message: ChatMessage)}
 	<b>{message.author}</b>
-	<p>{message.text}</p>
+	<p>{@html message.text}</p>
 {/snippet}
