@@ -1,12 +1,15 @@
 // Start Rule
 start
-  = task / ui
+  = task / chat / group_by / task_list
 
-ui 
-  = "chat" _ position:chat_position {
+group_by =
+
+task_list =
+
+chat 
+  = "chat" _ "to the" _ position:chat_position {
     return {
-      type: "ui",
-      element: "chat",
+      type: "chat",
       position: position,
     }
   }
@@ -17,7 +20,7 @@ chat_position
   }
 
 task
-  = "task" _ identifier:QuotedWords _ priority:prio {
+  = "task" _ identifier:StringLiteral _ "with priority" _ priority:prio {
       return {
         type: "task",
         identifier: identifier,
@@ -26,16 +29,10 @@ task
     }
 
 // Task Components
-QuotedWords
-  = '"' Words '"' {
-    return text();
-  }
-
-Words
-  = Word (_ Word)*
-
-Word
-  = [a-zA-Z0-9]+
+StringLiteral
+  = "\"" chars:[^"]* "\"" {
+      return chars.join("");
+    }
 
 prio
   = "low" / "medium" / "high" {

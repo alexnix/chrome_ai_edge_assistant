@@ -1,6 +1,5 @@
 import { type AiAssistant, type AiAssistantFactory, type Mission, type ResultHandler } from "./ai_assistant";
 import type { ChromeBuiltinAi } from "./chrome_ai_types";
-import { state } from "./state.svelte";
 
 export class ChromeBasedAiAssistantFactory implements AiAssistantFactory {
     async create(mission: Mission): Promise<AiAssistant> {
@@ -16,10 +15,18 @@ export class ChromeBasedAiAssistant implements AiAssistant {
 	constructor(private readonly mission: Mission) { }
 
 	async init(): Promise<void> {
-		this.ai = await window.ai.languageModel.create();
 		try {
-			const initReply = await this.ai.prompt(this.mission.getInstructions());
-			console.log('init success', initReply);
+
+			this.ai = await window.ai.languageModel.create({
+				initialPrompts: [
+					{ role: "system", content: this.mission.getInstructions() },
+				    { role: "user", content: "I am hungy" },
+					{ role: "assistant", content: "Do you want me to add a task for buying food?" },
+					{ role: "user", content: "Yes pelase" },
+					{ role: "assistant", content: `$ task "buy food" with priority medium` }
+				]
+			});
+
 		} catch (e: unknown) {
 			console.log('failed to init', e);
 		}

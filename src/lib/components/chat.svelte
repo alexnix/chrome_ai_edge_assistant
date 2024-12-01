@@ -11,6 +11,7 @@
 	import { TodoAppMission } from '$lib/todo_app_mission';
 	import type { AiAssistant } from '$lib/ai_assistant';
 	import { ChromeBasedAiAssistantFactory } from '$lib/chome_basd_ai_assistant';
+	import { CircleCheck } from 'lucide-svelte/icons';
 
 	interface ChatMessage {
 		author: 'user' | 'ai' | 'system_error' | 'system_command';
@@ -20,16 +21,16 @@
 	let scrollView: any;
 
 	let userCurrentMessage = $state<string>('');
-	let messages = $state<ChatMessage[]>([]);
-	let assistant = $state<AiAssistant | null>(null);
-	let assistantAvailable = $state<boolean>(false);
+	let {
+		messages = $bindable(),
+		assistant,
+		assistantAvailable
+	}: {
+		messages: ChatMessage[];
+		assistant: AiAssistant|null;
+		assistantAvailable: boolean;
+	} = $props();
 	let aiThiking = $state(false);
-
-	onMount(async () => {
-		const aiAssistantFactory = new ChromeBasedAiAssistantFactory();
-		assistant = await aiAssistantFactory.create(new TodoAppMission());
-		assistantAvailable = true;
-	});
 
 	function scrollChatToBottom() {
 		// Use setTimeout to make sure the new messages have rendered already
@@ -62,7 +63,7 @@
 			author: 'ai',
 			text: ''
 		});
-		
+
 		const res = await assistant.sendMessage(messageForAi, {
 			onError(message) {
 				messages.pop();
@@ -75,8 +76,8 @@
 			onMissionCompleted() {
 				messages.pop();
 				messages.push({
-					author: "system_command",
-					text: "",
+					author: 'system_command',
+					text: ''
 				});
 				aiThiking = false;
 			},
@@ -85,9 +86,7 @@
 				scrollChatToBottom();
 			},
 
-			onMission() {
-
-			},
+			onMission() {},
 
 			onDone() {
 				aiThiking = false;
@@ -159,10 +158,17 @@
 </Card.Root>
 
 {#snippet singleChatMessage(message: ChatMessage)}
-	<div>
-		<b>{message.author}</b>
-		{#if message.text}
-			<p class="prose">{@html message.text}</p>
-		{/if}
-	</div>
+	{#if message.author === 'system_command'}
+		<div class="flex flex-row items-center space-x-2 text-green-700">
+			<CircleCheck class="w-4" />
+			<small>Theo executed a command</small>
+		</div>
+	{:else}
+		<div>
+			<b>{message.author}</b>
+			{#if message.text}
+				<p class="prose">{@html message.text}</p>
+			{/if}
+		</div>
+	{/if}
 {/snippet}
