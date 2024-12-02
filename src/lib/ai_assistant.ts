@@ -3,13 +3,19 @@ export interface ResultHandler {
 	onError(message: string): void;
 	onMission(message: string): void;
 	onDone(): void;
-	onMissionCompleted(): void;
+	onMissionCompleted(numberOfExecutedCommands: number): void;
+}
+
+export interface CoversationPromt {
+	role: "user" | "assistant";
+  	content: string;
 }
 
 export interface Mission {
 	getInstructions(): string;
+	getExample(): CoversationPromt[];
 	isValidAttempt(message: string): boolean;
-	execute(command: string): void;
+	execute(command: string): number;
 }
 
 export interface AiAssistantFactory {

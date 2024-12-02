@@ -1,5 +1,6 @@
 import { type AiAssistant, type AiAssistantFactory, type Mission, type ResultHandler } from "./ai_assistant";
-import type { ChromeBuiltinAi } from "./chrome_ai_types";
+import type { AILanguageModel } from "./chrome_ai_types";
+import { SyntaxError } from "./dsl/gen/dsl";
 
 export class ChromeBasedAiAssistantFactory implements AiAssistantFactory {
     async create(mission: Mission): Promise<AiAssistant> {
@@ -10,7 +11,9 @@ export class ChromeBasedAiAssistantFactory implements AiAssistantFactory {
 }
 
 export class ChromeBasedAiAssistant implements AiAssistant {
-	private ai!: ChromeBuiltinAi;
+	private ai!: AILanguageModel;
+	private feedbackLoopCount = 0;
+	public static readonly MAX_FEEDBACK_LOOP_ITERATIONS = 3;
 
 	constructor(private readonly mission: Mission) { }
 
@@ -20,10 +23,7 @@ export class ChromeBasedAiAssistant implements AiAssistant {
 			this.ai = await window.ai.languageModel.create({
 				initialPrompts: [
 					{ role: "system", content: this.mission.getInstructions() },
-				    { role: "user", content: "I am hungy" },
-					{ role: "assistant", content: "Do you want me to add a task for buying food?" },
-					{ role: "user", content: "Yes pelase" },
-					{ role: "assistant", content: `$ task "buy food" with priority medium` }
+				    ...this.mission.getExample(),
 				]
 			});
 
@@ -33,8 +33,10 @@ export class ChromeBasedAiAssistant implements AiAssistant {
 	}
 
 	async sendMessage(message: string, hander: ResultHandler): Promise<void> {
+		console.log('Prompt: ', message);
+		this.feedbackLoopCount = 0;
+
 		try {
-			console.log('prompt', message);
 			const stream = await this.ai.promptStreaming(message);
 			let fullResponse = "";
 
@@ -49,14 +51,43 @@ export class ChromeBasedAiAssistant implements AiAssistant {
 			}
 
 			if(this.mission.isValidAttempt(fullResponse)) {
-				this.mission.execute(fullResponse);
-				hander.onMissionCompleted();
+				const numberOfExecutedCommands = this.mission.execute(fullResponse);
+				hander.onMissionCompleted(numberOfExecutedCommands);
 			} else {
 				hander.onDone();
 			}
 		} catch (e: unknown) {
 			console.log(e);
-			hander.onError((e as Error).message)
+			if(e instanceof SyntaxError) {
+				console.log("Try to self correct: ", e.format());
+				await this.attemptFeedbackLoop(e.format(), hander);
+			} else {
+				hander.onError((e as Error).message)
+			}
+		}
+	}
+
+	private async attemptFeedbackLoop(errorMessage: string, hander: ResultHandler) {
+		if(++this.feedbackLoopCount > ChromeBasedAiAssistant.MAX_FEEDBACK_LOOP_ITERATIONS) {
+			hander.onError("The model faield to generate valid command to fulfil your request.");
+			return;
+		}
+
+		const res = await this.ai.prompt(errorMessage);
+		// The model tends to apologies when feedback is given
+		// So just ignore whatever comes before the $
+		const [_modelApology, ...rest] = res.split("$");
+		try {
+			const numberOfExecutedCommands = this.mission.execute(rest.join("\n"));
+			hander.onMissionCompleted(numberOfExecutedCommands);
+		}  catch (e: unknown) {
+			console.log(e);
+			if(e instanceof SyntaxError) {
+				console.log("Try to self correct: ", e.format());
+				await this.attemptFeedbackLoop(e.format(), hander);
+			} else {
+				hander.onError((e as Error).message)
+			}
 		}
 	}
 }

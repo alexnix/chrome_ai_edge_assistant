@@ -8,16 +8,15 @@ interface State {
 	chat: {
 		position: 'left' | 'right';
 	};
-	groupBy: null | "priority";
+	groupBy: "none" | "priority";
 	todos: Todo[];
 }
 
-export let appState = $state<State>({
+export const appState = $state<State>({
 	chat: {
 		position: 'left'
 	},
-	groupBy: null,
+	groupBy: "none",
 	todos: [
-		{title: "Eat", description: "healfy breakfast", priority: "low"}
 	],
 });

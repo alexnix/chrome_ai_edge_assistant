@@ -1,10 +1,19 @@
 // Start Rule
 start
-  = task / chat / group_by / task_list
+  = task / chat / groupBy
 
-group_by =
+groupBy 
+  = "display tasks by" _ column:task_column {
+    return {
+      type: "group_by",
+      column: column,
+    }
+  }
 
-task_list =
+task_column
+  = "priority" / "none" {
+    return text();
+  }
 
 chat 
   = "chat" _ "to the" _ position:chat_position {
